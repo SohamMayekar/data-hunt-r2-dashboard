@@ -257,8 +257,8 @@ else:
                 lohi=[wilson(int(k),int(n)) for k,n in zip(grp[colname],grp.n)]
                 bounds.extend([lo*100 for lo,hi in lohi]+[hi*100 for lo,hi in lohi]+[base*100])
                 fig.add_trace(go.Scatter(
-                    x=rates,y=y+offset,mode="markers",name="Return rate" if status=="Returned" else "Cancellation rate",
-                    marker={"color":color,"size":8},
+                    x=rates,y=y+offset,mode="markers",showlegend=False,
+                    marker={"color":color,"size":8,"symbol":"circle" if status=="Returned" else "diamond"},
                     error_x={"type":"data","symmetric":False,
                         "array":[hi*100-rate for (lo,hi),rate in zip(lohi,rates)],
                         "arrayminus":[rate-lo*100 for (lo,hi),rate in zip(lohi,rates)],
@@ -271,15 +271,13 @@ else:
                 tickmode="array",tickvals=y,ticktext=grp.index.astype(str).tolist(),
                 range=[len(grp)-0.5,-0.5],automargin=True,showgrid=False,zeroline=False
             )
-            fig.update_xaxes(title_text="Order rate (%)",range=[max(0,min(bounds)-0.8),min(100,max(bounds)+0.8)],gridcolor=COLORS["grid"])
+            fig.update_xaxes(title_text="Share of orders (%)",range=[max(0,min(bounds)-0.8),min(100,max(bounds)+0.8)],gridcolor=COLORS["grid"])
             fig.update_layout(
                 title=f"Return and cancellation rates by {label.lower()}",height=350,
-                margin={"l":12,"r":20,"t":58,"b":70},
-                legend={"orientation":"h","y":-0.28,"x":0},
-                showlegend=True
+                margin={"l":12,"r":20,"t":58,"b":45},showlegend=False
             )
             show_chart(fig,col)
-    st.caption("Dots show each group's rate. Whiskers show a 95% range. Dashed lines show the overall return and cancellation rates. Hover over a dot for the order count.")
+    st.caption("Orange circles show returns. Teal diamonds show cancellations. Vertical dashed lines mark the overall rates. Horizontal bars show a 95% range. Hover over a mark for the order count.")
 
 st.subheader("Ratings and return rates are similar across shipping and discount groups")
 from scipy.stats import spearmanr, pointbiserialr

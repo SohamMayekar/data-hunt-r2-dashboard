@@ -333,7 +333,7 @@ for col,(title,body) in zip(action_cols,actions):
     col.markdown(f"<div class='action'><h3>{title}</h3><p>{body}</p></div>",unsafe_allow_html=True)
 
 st.markdown("<div id='notes'></div>",unsafe_allow_html=True)
-with st.expander("Data notes and cleaning log",expanded=False):
+with st.expander("Data notes and cleaning log",expanded=True):
     st.markdown(f"""<div class='note'><b>Cleaning log</b><br>
 Raw rows: {audit['raw_rows']:,}. Removed {audit['duplicate_rows']} exact duplicate rows ({money(audit['duplicate_revenue'])} revenue and {money(audit['duplicate_profit'])} profit impact).<br>
 Removed {audit['bad_discount_rows']} lines with discount above 100% (their recorded revenue totals {money(audit['bad_discount_revenue'])}; true discount is unknown).<br>

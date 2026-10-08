@@ -106,7 +106,7 @@ html, body, [class*="css"] {font-family:'IBM Plex Sans',Arial,sans-serif;color:#
 .stApp {background:#F6F3EC;} .block-container {max-width:1280px;padding-top:2rem;padding-bottom:4rem;}
 header[data-testid="stHeader"] {display:none;} div[data-testid="stToolbar"] {display:none;}
 h1,h2,h3 {font-family:'Source Serif 4',Georgia,serif!important;font-weight:500!important;color:#1B1B1B;}
-.st-key-sticky {position:fixed!important;top:0;left:max(16px,calc((100vw - 1280px)/2));z-index:999;background:#F6F3EC;border-bottom:1px solid #D9D3C7;padding:8px 0 4px;width:min(1280px,calc(100vw - 32px));box-sizing:border-box;}
+.st-key-sticky {position:fixed!important;top:0;left:max(16px,calc((100vw - 1280px)/2));z-index:999;background:#F6F3EC;padding:8px 0 4px;width:min(1280px,calc(100vw - 32px));box-sizing:border-box;}
 .filter-spacer {height:140px;}
 .kpirow {display:grid;grid-template-columns:repeat(4,1fr);gap:24px;border-top:1px solid #1B1B1B;border-bottom:1px solid #D9D3C7;padding:18px 0;margin:20px 0 10px;}
 .kpi {min-width:0}.klabel {font-size:12px;color:#6B6B6B!important}.kvalue {font:36px 'Source Serif 4',Georgia,serif; font-variant-numeric:tabular-nums;color:#1B1B1B!important;}.kdetail {font-size:12px;color:#6B6B6B!important;line-height:1.4}
@@ -225,7 +225,6 @@ def wilson(k,n,z=1.96):
     p=k/n; den=1+z*z/n; mid=(p+z*z/(2*n))/den; half=z*math.sqrt(p*(1-p)/n+z*z/(4*n*n))/den
     return mid-half,mid+half
 
-ratecols=st.columns(4)
 groups=[("Category","category"),("Region","region"),("Payment","payment_method"),("Shipping days","shipping_band")]
 rate_view=view0
 order_meta=rate_view.groupby("order_id").agg(status=("order_status","first"),region=("region","first"),category=("category","first"),payment_method=("payment_method","first"),segment=("segment","first"),customer=("customer_id","first"))
@@ -236,18 +235,51 @@ too_few=order_meta.order_id.nunique() if "order_id" in order_meta else len(order
 if len(order_meta)<30:
     st.info("Too few orders to read")
 else:
-    for col,(label,dim) in zip(ratecols,groups):
-        fig=make_subplots(rows=2,cols=1,shared_xaxes=False,vertical_spacing=.28,subplot_titles=("Return rate","Cancellation rate"))
-        for rr,(name,status,base) in enumerate([("Returns","Returned",base_return),("Cancellations","Cancelled",base_cancel)],1):
-            grp=order_meta.groupby(dim,observed=True).status.agg(n="size",k=lambda s:(s==status).sum()).dropna().sort_values("k",ascending=False)
-            lohi=[wilson(int(x.k),int(x.n)) for _,x in grp.iterrows()]
-            rates=grp.k/grp.n*100
-            fig.add_trace(go.Scatter(x=rates,y=grp.index.astype(str),mode="markers",marker={"color":COLORS['accent'] if rr==1 else COLORS['teal'],"size":8},error_x={"type":"data","symmetric":False,"array":[h*100-r for (l,h),r in zip(lohi,rates)],"arrayminus":[r-l*100 for (l,h),r in zip(lohi,rates)],"color":COLORS['muted'],"thickness":1},customdata=np.c_[grp.n,grp.k],hovertemplate="%{y}<br>Rate %{x:.1f}%<br>n=%{customdata[0]} orders<extra></extra>"),row=rr,col=1)
-            fig.add_vline(x=base*100,line_dash="dash",line_color=COLORS['muted'],row=rr,col=1)
-            fig.update_xaxes(title_text="Rate (%)",row=rr,col=1)
-        fig.update_layout(title=label,height=350,showlegend=False,margin={"l":8,"r":8,"t":65,"b":25})
-        show_chart(fig,col)
-    st.caption("The bars show return and cancellation rates. The whiskers show a 95% range. Hover to see the number of orders in each group.")
+    for start in (0, 2):
+        ratecols=st.columns(2)
+        for col,(label,dim) in zip(ratecols,groups[start:start+2]):
+            grp=order_meta.groupby(dim,observed=True).status.agg(
+                n="size",returns=lambda s:(s=="Returned").sum(),cancellations=lambda s:(s=="Cancelled").sum()
+            ).dropna()
+            grp["return_rate"]=grp.returns/grp.n*100
+            grp=grp.sort_values("return_rate",ascending=True)
+            if grp.empty:
+                col.info("No orders in this group.")
+                continue
+            fig=go.Figure()
+            y=np.arange(len(grp),dtype=float)
+            bounds=[]
+            for status,colname,color,base,offset in [
+                ("Returned","returns",COLORS["accent"],base_return,-0.13),
+                ("Cancelled","cancellations",COLORS["teal"],base_cancel,0.13),
+            ]:
+                rates=grp[colname]/grp.n*100
+                lohi=[wilson(int(k),int(n)) for k,n in zip(grp[colname],grp.n)]
+                bounds.extend([lo*100 for lo,hi in lohi]+[hi*100 for lo,hi in lohi]+[base*100])
+                fig.add_trace(go.Scatter(
+                    x=rates,y=y+offset,mode="markers",name="Return rate" if status=="Returned" else "Cancellation rate",
+                    marker={"color":color,"size":8},
+                    error_x={"type":"data","symmetric":False,
+                        "array":[hi*100-rate for (lo,hi),rate in zip(lohi,rates)],
+                        "arrayminus":[rate-lo*100 for (lo,hi),rate in zip(lohi,rates)],
+                        "color":COLORS["muted"],"thickness":1},
+                    customdata=np.c_[grp.index.astype(str),grp[colname],grp.n],
+                    hovertemplate="%{customdata[0]}<br>Rate %{x:.1f}%<br>%{customdata[1]} of %{customdata[2]} orders<extra></extra>"
+                ))
+                fig.add_vline(x=base*100,line_dash="dash" if status=="Returned" else "dot",line_color=color,line_width=1)
+            fig.update_yaxes(
+                tickmode="array",tickvals=y,ticktext=grp.index.astype(str).tolist(),
+                range=[len(grp)-0.5,-0.5],automargin=True,showgrid=False,zeroline=False
+            )
+            fig.update_xaxes(title_text="Order rate (%)",range=[max(0,min(bounds)-0.8),min(100,max(bounds)+0.8)],gridcolor=COLORS["grid"])
+            fig.update_layout(
+                title=f"Return and cancellation rates by {label.lower()}",height=350,
+                margin={"l":12,"r":20,"t":58,"b":70},
+                legend={"orientation":"h","y":-0.28,"x":0},
+                showlegend=True
+            )
+            show_chart(fig,col)
+    st.caption("Dots show each group's rate. Whiskers show a 95% range. Dashed lines show the overall return and cancellation rates. Hover over a dot for the order count.")
 
 st.subheader("Ratings and return rates are similar across shipping and discount groups")
 from scipy.stats import spearmanr, pointbiserialr

@@ -36,7 +36,7 @@ Revenue is broadly flat across 2025. July has the highest monthly revenue at ₹
 
 ### Q3. Problems
 
-The return rate is 7.78% (622 of 7,995 orders). The cancellation rate is 8.23% (658 of 7,995). The tested categories, regions, payment methods, shipping bands, age bands and segments do not show a statistically clear hotspot. Shipping time, discount and rating relationships are small. These results do not show that faster shipping or deeper discounts would change returns or ratings.
+The return rate is 7.78% (622 of 7,995 orders). The cancellation rate is 8.23% (658 of 7,995). The tested categories, regions, payment methods, shipping bands, age bands and segments do not show a statistically clear hotspot. The displayed associations are near zero: shipping days vs rating r=-0.014 (p=0.14), discount vs rating r=0.001 (p=0.87), and discount vs return status r=-0.005 (p=0.57). These results do not show that faster shipping or deeper discounts would change returns or ratings.
 
 ### Q4. Customers
 
